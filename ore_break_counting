@@ -1,0 +1,75 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.io import loadmat
+
+# -------------------------
+# INPUTS
+# -------------------------
+file_path = r"E:\Jake - E Drive\2394 - BHP PIR - ST1\discharge_rate_1Hz.MAT"
+
+# Threshold range input
+threshold_min = 500      # minimum threshold in tph
+threshold_max = 9000    # maximum threshold in tph
+threshold_step = 500     # step in tph
+
+# -------------------------
+# CALCULATE THRESHOLDS ARRAY
+# -------------------------
+thresholds = np.arange(threshold_min, threshold_max + threshold_step, threshold_step)  # inclusive
+thresholds_ktph = thresholds / 1000  # convert to ktph for plotting
+
+# -------------------------
+# LOAD DATA
+# -------------------------
+data = loadmat(file_path)
+variable_names = [k for k in data.keys() if not k.startswith("__")]
+throughput = data[variable_names[0]].flatten()  # tph
+
+# -------------------------
+# DETECT START EVENTS FOR MULTIPLE THRESHOLDS
+# -------------------------
+num_starts_list = []
+
+print("Threshold (ktph) | Number of Start Events")
+print("----------------|---------------------")
+
+for thresh in thresholds:
+    running = (throughput > thresh).astype(int)
+    start_indices = np.where(np.diff(running) == 1)[0] + 1
+    num_starts = len(start_indices)
+    if running[0] == 1:
+        num_starts += 1
+    num_starts_list.append(num_starts)
+    print(f"{thresh/1000:>14.1f} | {num_starts:>21}")
+
+# -------------------------
+# PLOT HISTOGRAM WITH MATLAB STYLE
+# -------------------------
+fig, ax = plt.subplots(figsize=(12,6), facecolor='#E5E5E5')  # figure background grey
+
+# MATLAB default blue bars
+bars = ax.bar(thresholds_ktph, num_starts_list, width=threshold_step/1000 * 0.8,  # 80% of step width
+              color='#0072BD', edgecolor='k')
+
+# Log y-axis, y-limits
+ax.set_yscale('log')
+ax.set_ylim(1, 1e4)
+
+# Labels and title
+ax.set_xlabel("Throughput Range (ktph)", fontsize=21, fontname='Arial')
+ax.set_ylabel("Counts", fontsize=21, fontname='Arial')
+ax.set_title("ST01 ORE BREAKS", fontsize=21, fontweight='bold', fontname='Arial')
+
+# Grid behind bars
+ax.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.7)
+ax.set_axisbelow(True)
+
+# Tick marks on all sides, inside, twice as long
+ax.tick_params(axis='both', which='both', direction='in', top=True, right=True, length=10, labelsize=21)
+ax.tick_params(axis='x', labelsize=14)  # x-axis tick font size
+
+# Optional: auto x-ticks with step = 0.5 ktph
+ax.set_xticks(np.arange(thresholds_ktph[0], thresholds_ktph[-1]+0.5, 0.5))
+
+plt.tight_layout()
+plt.show()
